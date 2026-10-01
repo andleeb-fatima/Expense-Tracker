@@ -63,6 +63,9 @@ app.patch(
           runValidators: true,
         },
       );
+      if (!req.userId) {
+        return res.status(401).json({ message: "UserId required" });
+      }
       if (!updatedExpense) {
         return res.status(404).json({ message: "Expense not found" });
       }
@@ -80,6 +83,10 @@ app.get("/expenses/summary", async (req: Request, res: Response) => {
     const expensesSummary: ExpenseSummaryDto[] = await ExpenseModel.find({
       userId: req.userId,
     }).select("amount category");
+    console.log("the userId", req.userId);
+    if (!req.userId) {
+      return res.status(404).json({ message: "UserId required" });
+    }
     return res.status(200).json(expensesSummary);
   } catch (error) {
     console.error("Error fetching expense summary:", error);

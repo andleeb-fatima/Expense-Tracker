@@ -1,5 +1,5 @@
-import type { Expense } from "./types/Expense.js";
-export const expensesArr: Expense[] = [
+import type { IExpense } from "./types/Expense.js";
+export const expensesArr: IExpense[] = [
   {
     id: "1",
     amount: 2000,
