@@ -1,6 +1,5 @@
-import type { Category } from "../types/Expense.ts";
-import type { Expense } from "../types/Expense.ts";
-export function calculateTotal(expenses: Expense[]): number {
+import type { IExpense, Category } from "../types/index.ts";
+export function calculateTotal(expenses: IExpense[]): number {
   let sum = 0;
   for (const expense of expenses) {
     sum += expense.amount;
@@ -9,7 +8,7 @@ export function calculateTotal(expenses: Expense[]): number {
 }
 
 export function getTotalsByCategory(
-  expenses: Expense[],
+  expenses: IExpense[],
 ): Record<Category, number> {
   return expenses.reduce(
     (acc, expense) => {

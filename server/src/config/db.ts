@@ -1,6 +1,3 @@
-import dotenv from "dotenv";
-
-dotenv.config();
 import mongoose from "mongoose";
 
 export const connectDB = async () => {
@@ -16,7 +13,7 @@ export const connectDB = async () => {
     mongoose.connection.on("connected", () => {
       console.log("✅ MongoDB connection established successfully");
     });
-    const conn = await mongoose.connect(process.env.MONGO_URI as string);
+    const conn = await mongoose.connect(uri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`Error: ${error}`);

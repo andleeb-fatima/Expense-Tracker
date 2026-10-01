@@ -1,7 +1,11 @@
+import dotenv from "dotenv";
+
+dotenv.config();
 import dns from "node:dns";
 
 // Added to fix MongoDB Atlas SRV resolution failures in some network environments.
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
+import { authenticateUser } from "./middleware/authenticateUser.ts";
 import type { Express, Request, Response, NextFunction } from "express";
 import express from "express";
 import { connectDB } from "./config/db.ts";
@@ -23,27 +27,20 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Basic Health Check Route
-// app.get("/health", (req: Request, res: Response) => {
-//   res.status(200).json({
-//     message: "Server is running smoothly!",
-//     timestamp: new Date().toISOString(),
-//   });
-// });
-
+app.use(authenticateUser);
 app.post(
   "/expenses",
   async (req: Request<{}, {}, CreateExpenseDto>, res: Response) => {
     try {
-      if (!req.body.amount || !req.body.category || !req.body.date) {
+      const { amount, category, description } = req.body;
+      if (!amount || !category || !description) {
         return res.status(400).json({ message: "Missing required fields" });
       }
       const newExpense: IExpense = await ExpenseModel.create({
         ...req.body,
-        userId: "temp-user",
+        date: Date.now(),
+        userId: req.userId,
       });
-      // expensesArr.push(newExpense);
-      // console.log("expensesArr", expensesArr);
       return res.status(201).json(newExpense);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -56,45 +53,82 @@ app.post(
 app.patch(
   "/expenses/:id",
   async (req: Request<{ id: string }, {}, UpdateExpenseDto>, res: Response) => {
-    const { id } = req.params;
-    // const { amount } = req.body;
-    // const expense = expensesArr.find((e) => e.id === id);
-    // const updatedExpense = { ...expense, amount };
-    const updatedExpense = await ExpenseModel.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
-    return res.status(200).json(updatedExpense);
+    try {
+      const { id } = req.params;
+      const updatedExpense = await ExpenseModel.findOneAndUpdate(
+        { _id: id, userId: req.userId },
+        req.body,
+        {
+          returnDocument: "after",
+          runValidators: true,
+        },
+      );
+      if (!updatedExpense) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      return res.status(200).json(updatedExpense);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "An error occurred";
+      return res.status(500).json({ message });
+    }
   },
 );
 
 app.get("/expenses/summary", async (req: Request, res: Response) => {
-  const expensesSummary: ExpenseSummaryDto[] = expensesArr;
-  return res.status(200).json(expensesSummary);
+  try {
+    const expensesSummary: ExpenseSummaryDto[] = await ExpenseModel.find({
+      userId: req.userId,
+    }).select("amount category");
+    return res.status(200).json(expensesSummary);
+  } catch (error) {
+    console.error("Error fetching expense summary:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 app.get("/expenses/totals-by-category", async (req: Request, res: Response) => {
-  const totalExpensesByCategory = getTotalsByCategory(expensesArr);
-  return res.status(200).json(totalExpensesByCategory);
+  try {
+    const expenses = await ExpenseModel.find({ userId: req.userId });
+    const totalExpensesByCategory = getTotalsByCategory(expenses);
+    return res.status(200).json(totalExpensesByCategory);
+  } catch (error) {
+    console.error("Error calculating expenses by category:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 app.get(
   "/expenses/:id",
   async (req: Request<{ id: string }>, res: Response) => {
-    const { id } = req.params;
-    // const userExpense = expensesArr.find((e) => e.id === id);
-    const userExpense = await ExpenseModel.findById(id);
-    res.status(200).json(userExpense);
+    try {
+      const { id } = req.params;
+
+      const userExpense = await ExpenseModel.findOne({
+        _id: id,
+        userId: req.userId,
+      });
+
+      if (!userExpense) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+
+      return res.status(200).json(userExpense);
+    } catch (error) {
+      console.error(`Error fetching expense with id ${req.params.id}:`, error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
   },
 );
 
-app.get("expenses/total", (req: Request, res: Response) => {
-  const total: number = calculateTotal(expensesArr);
-  return total;
-});
-
-// Example API Endpoint
-app.get("/api/v1/status", (req: Request, res: Response) => {
-  res.status(200).json({ status: "OK", uptime: process.uptime() });
+app.get("/expenses/total", async (req: Request, res: Response) => {
+  try {
+    const total: number = calculateTotal(expensesArr);
+    return res.status(200).json({ total });
+  } catch (error) {
+    console.error("Error calculating total expenses:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 // 404 Handler (Unmatched Routes)
