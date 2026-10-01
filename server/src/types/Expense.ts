@@ -1,4 +1,4 @@
-export interface Expense {
+export interface IExpense {
   readonly id: string;
   amount: number;
   category: Category;
@@ -12,4 +12,4 @@ export type Category =
   | "utilities"
   | "transport"
   | "entertainment"
-  | "others";
+  | "other";

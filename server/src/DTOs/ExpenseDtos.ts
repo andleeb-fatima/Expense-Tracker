@@ -1,4 +1,4 @@
-import type { Expense } from "./types/Expense.js";
+import type { Expense } from "../types/Expense.ts";
 
 // export interface CreateExpenseDto {
 //   amount: number;
