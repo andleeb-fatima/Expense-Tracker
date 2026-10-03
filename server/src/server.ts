@@ -6,12 +6,18 @@ import dns from "node:dns";
 // Added to fix MongoDB Atlas SRV resolution failures in some network environments.
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import { authenticateUser } from "./middleware/authenticateUser.ts";
+import { validateBody } from "./middleware/validateBody.ts";
 import type { Express, Request, Response, NextFunction } from "express";
+import {
+  createExpenseSchema,
+  updateExpenseSchema,
+} from "./schemas/expenseSchema.ts";
 import express from "express";
 import { connectDB } from "./config/db.ts";
 import { ExpenseModel, type ExpenseDocument } from "./models/Expense.model.ts";
 import { expensesArr } from "./constant.ts";
 import { calculateTotal, getTotalsByCategory } from "./utils/utilityfunc.ts";
+import jwt from "jsonwebtoken";
 
 import type {
   CreateExpenseDto,
@@ -27,9 +33,10 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(authenticateUser);
+// app.use(authenticateUser);
 app.post(
   "/expenses",
+  validateBody(createExpenseSchema),
   async (req: Request<{}, {}, CreateExpenseDto>, res: Response) => {
     try {
       const { amount, category, description } = req.body;
@@ -52,6 +59,7 @@ app.post(
 
 app.patch(
   "/expenses/:id",
+  validateBody(updateExpenseSchema),
   async (req: Request<{ id: string }, {}, UpdateExpenseDto>, res: Response) => {
     try {
       const { id } = req.params;
@@ -92,6 +100,23 @@ app.get("/expenses/summary", async (req: Request, res: Response) => {
     console.error("Error fetching expense summary:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
+});
+
+app.post("/api/login", (req, res) => {
+  // 1. Authenticate user credentials here...
+  const token = jwt.sign({ userId: req.userId }, "new", {
+    expiresIn: "1h",
+  });
+
+  // 2. Set the JWT in an HttpOnly cookie
+  res.cookie("token", token, {
+    httpOnly: true, // 🔒 Blocks JavaScript access (Prevents XSS)
+    secure: process.env.NODE_ENV === "production", // Send only over HTTPS
+    sameSite: "strict", // 🔒 Mitigates CSRF attacks
+    maxAge: 3600000, // Cookie expiry matching token lifespan (1 hour)
+  });
+
+  return res.status(200).json({ success: true, message: "cookies sent" });
 });
 
 app.get("/expenses/totals-by-category", async (req: Request, res: Response) => {
