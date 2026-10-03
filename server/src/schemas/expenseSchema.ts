@@ -24,7 +24,10 @@ export const updateExpenseSchema = z
       "entertainment",
       "other",
     ]),
-    description: z.string().trim().optional(),
+    description: z.string().trim(),
   })
-  .partial();
+  .partial()
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "Request body cannot be empty",
+  });
 export type UpdateExpense = z.infer<typeof updateExpenseSchema>;

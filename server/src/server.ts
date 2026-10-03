@@ -6,6 +6,7 @@ import dns from "node:dns";
 // Added to fix MongoDB Atlas SRV resolution failures in some network environments.
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import { authenticateUser } from "./middleware/authenticateUser.ts";
+import { globalErrorHandler } from "./middleware/errorHandler.ts";
 import { validateBody } from "./middleware/validateBody.ts";
 import type { Express, Request, Response, NextFunction } from "express";
 import {
@@ -37,11 +38,18 @@ app.use(express.urlencoded({ extended: true }));
 app.post(
   "/expenses",
   validateBody(createExpenseSchema),
-  async (req: Request<{}, {}, CreateExpenseDto>, res: Response) => {
+  async (
+    req: Request<{}, {}, CreateExpenseDto>,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const { amount, category, description } = req.body;
-      if (!amount || !category || !description) {
-        return res.status(400).json({ message: "Missing required fields" });
+      if (!amount || !category) {
+        return next({
+          statusCode: 400,
+          message: "Missing required fields",
+        });
       }
       const newExpense: IExpense = await ExpenseModel.create({
         ...req.body,
@@ -50,9 +58,10 @@ app.post(
       });
       return res.status(201).json(newExpense);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        return res.status(500).json({ message: error.message });
-      }
+      next(error);
+      // if (error instanceof Error) {
+      //   return res.status(500).json({ message: error.message });
+      // }
     }
   },
 );
@@ -60,7 +69,11 @@ app.post(
 app.patch(
   "/expenses/:id",
   validateBody(updateExpenseSchema),
-  async (req: Request<{ id: string }, {}, UpdateExpenseDto>, res: Response) => {
+  async (
+    req: Request<{ id: string }, {}, UpdateExpenseDto>,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const { id } = req.params;
       const updatedExpense = await ExpenseModel.findOneAndUpdate(
@@ -72,35 +85,47 @@ app.patch(
         },
       );
       if (!req.userId) {
-        return res.status(401).json({ message: "UserId required" });
+        const error = {
+          statusCode: 401,
+          message: "UserId Required",
+        };
+        return next(error);
       }
       if (!updatedExpense) {
-        return res.status(404).json({ message: "Expense not found" });
+        const error = {
+          statusCode: 404,
+          message: "Expense document not found",
+        };
+        return next(error);
       }
       return res.status(200).json(updatedExpense);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "An error occurred";
-      return res.status(500).json({ message });
+      next(error);
     }
   },
 );
 
-app.get("/expenses/summary", async (req: Request, res: Response) => {
-  try {
-    const expensesSummary: ExpenseSummaryDto[] = await ExpenseModel.find({
-      userId: req.userId,
-    }).select("amount category");
-    console.log("the userId", req.userId);
-    if (!req.userId) {
-      return res.status(404).json({ message: "UserId required" });
+app.get(
+  "/expenses/summary",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const expensesSummary: ExpenseSummaryDto[] = await ExpenseModel.find({
+        userId: req.userId,
+      }).select("amount category");
+      console.log("the userId", req.userId);
+      if (!req.userId) {
+        const error = {
+          statusCode: 404,
+          message: "UserId Required",
+        };
+        return next(error);
+      }
+      return res.status(200).json(expensesSummary);
+    } catch (error: unknown) {
+      next(error);
     }
-    return res.status(200).json(expensesSummary);
-  } catch (error) {
-    console.error("Error fetching expense summary:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+  },
+);
 
 app.post("/api/login", (req, res) => {
   // 1. Authenticate user credentials here...
@@ -108,7 +133,6 @@ app.post("/api/login", (req, res) => {
     expiresIn: "1h",
   });
 
-  // 2. Set the JWT in an HttpOnly cookie
   res.cookie("token", token, {
     httpOnly: true, // 🔒 Blocks JavaScript access (Prevents XSS)
     secure: process.env.NODE_ENV === "production", // Send only over HTTPS
@@ -119,16 +143,25 @@ app.post("/api/login", (req, res) => {
   return res.status(200).json({ success: true, message: "cookies sent" });
 });
 
-app.get("/expenses/totals-by-category", async (req: Request, res: Response) => {
-  try {
-    const expenses = await ExpenseModel.find({ userId: req.userId });
-    const totalExpensesByCategory = getTotalsByCategory(expenses);
-    return res.status(200).json(totalExpensesByCategory);
-  } catch (error) {
-    console.error("Error calculating expenses by category:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+app.get(
+  "/expenses/totals-by-category",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) {
+        return next({
+          statusCode: 404,
+          message: "UserId Required",
+        });
+      }
+      const expenses = await ExpenseModel.find({ userId: req.userId });
+
+      const totalExpensesByCategory = getTotalsByCategory(expenses);
+      return res.status(200).json(totalExpensesByCategory);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 app.get(
   "/expenses/:id",
@@ -169,13 +202,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Global Error Handling Middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: "Internal Server Error",
-    message: err.message,
-  });
-});
+app.use(globalErrorHandler);
 
 console.log("Attempting to connect to MongoDB...");
 await connectDB();
