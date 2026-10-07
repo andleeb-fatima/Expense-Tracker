@@ -14,9 +14,10 @@ export function authenticateUser(
   }
   try {
     // const verifiedToken = jwt.verify(token, process.env.SECRET_KEY);
-    const verifiedToken = { userId: "fff", token: "1243534" };
+    const verifiedToken = { userId: "123", token: "1243534" };
     if (token === verifiedToken.token && req.userId === verifiedToken.userId)
-      req.userId = verifiedToken.userId;
+      console.log("userId", verifiedToken.userId);
+    req.userId = verifiedToken.userId;
     return next();
   } catch (error: unknown) {
     if (error instanceof Error) {

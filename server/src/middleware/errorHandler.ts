@@ -6,8 +6,13 @@ export const globalErrorHandler = (
   res: Response,
   next: NextFunction,
 ) => {
-  const statusCode = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
+  let statusCode = err.statusCode || 500;
+  let message = err.message || "Internal Server Error";
+
+  //   if (err.statusCode === 11000) {
+  //   statusCode = 409;
+  //   err.message = "This item already exists.";
+  // }
 
   return res.status(statusCode).json({
     status: statusCode,
