@@ -1,12 +1,12 @@
-import type { Expense } from "../types/Expense.ts";
+import type { IExpense } from "../types/Expense.ts";
 
 // export interface CreateExpenseDto {
 //   amount: number;
 //   category: Category;
 //   description?: string;
 // }
-export type CreateExpenseDto = Omit<Expense, "id" | "userId" | "date">;
+export type CreateExpenseDto = Omit<IExpense, "id" | "userId" | "date">;
 
-export type UpdateExpenseDto = Partial<Omit<Expense, "id" | "userId">>;
+export type UpdateExpenseDto = Partial<Omit<IExpense, "id" | "userId">>;
 
-export type ExpenseSummaryDto = Pick<Expense, "id" | "category" | "amount">;
+export type ExpenseSummaryDto = Pick<IExpense, "id" | "category" | "amount">;

@@ -13,3 +13,9 @@ export type Category =
   | "transport"
   | "entertainment"
   | "other";
+export type PaginationResponse = {
+  items: IExpense[];
+  page: number;
+  limit: number;
+  total: number;
+};
