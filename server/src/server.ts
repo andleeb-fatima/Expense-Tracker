@@ -31,13 +31,23 @@ import type { IExpense, PaginationResponse } from "./types/index.ts";
 import { createUserSchema, loginUserSchema } from "./schemas/userSchema.ts";
 import type { IUser } from "./types/User.ts";
 import { UserModel } from "./models/User.model.ts";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware for parsing JSON and URL-encoded bodies
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true, // Enable this if you are sending cookies or authorization headers
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(cookieParser());
 app.post(
   "/signup",
   validateBody(createUserSchema),
@@ -48,7 +58,7 @@ app.post(
   ) => {
     try {
       const { password, name, email } = req.body;
-      const hashedPassword = bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
       if (!name || !email || !password) {
         return next({ statusCode: 400, message: "All fields are required." });
       }
@@ -66,7 +76,7 @@ app.post(
         password: hashedPassword,
         email,
       });
-      return res.status(201).json({ user });
+      return res.status(201).json({ name, email });
     } catch (error) {
       next(error);
     }
@@ -87,32 +97,35 @@ app.post(
         return next({ statusCode: 400, message: "All fields are required." });
       }
 
-      const user = await UserModel.findOne({ email });
+      const user = await UserModel.findOne({ email }).select("+password");
       if (!user) {
-        return next({ statusCode: 400, message: "Invalid email or password" });
+        return next({ statusCode: 401, message: "Invalid email or password" });
       }
 
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        return next({ statusCode: 400, message: "Invalid email or password" });
+        return next({ statusCode: 401, message: "Invalid email or password" });
       }
 
       const accessToken = jwt.sign(
-        { userId: req.userId },
-        process.env.JWT_ACCESS_SECRET,
+        { userId: user._id },
+        process.env.JWT_ACCESS_SECRET!,
         {
           expiresIn: "1h",
         },
       );
-      const refreshToken = jwt.sign(
-        { userId: req.userId },
-        process.env.JWT_REFRESH_SECRET,
-        {
-          expiresIn: "3d",
-        },
-      );
+      const refreshSecret = process.env.JWT_REFRESH_SECRET;
+      if (!refreshSecret) {
+        throw new Error(
+          "JWT_REFRESH_SECRET is not defined in environment variables",
+        );
+      }
 
-      res.cookie("token", accessToken, {
+      const refreshToken = jwt.sign({ userId: user._id }, refreshSecret, {
+        expiresIn: "3d",
+      });
+
+      res.cookie("token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
@@ -130,7 +143,26 @@ app.post(
 );
 
 app.use(authenticateUser);
-app.post("/refresh", (req: Request, res: Response, next: NextFunction) => {});
+app.post("/refresh", (req: Request, res: Response, next: NextFunction) => {
+  const { token } = req.cookies;
+  if (!token) {
+    next({ statusCode: 401, message: "Token Required" });
+  }
+  console.log(token);
+  const verifiedToken = jwt.verify(token, process.env.JWT_REFRESH_SECRET!);
+  if (!verifiedToken) {
+    next({ statusCode: 403, message: "Expired or Invalid token" });
+  }
+  const newAccessToken = jwt.sign(
+    { userId: req.userId },
+    process.env.ACCESS_TOKEN_SECRET!,
+    { expiresIn: "15m" },
+  );
+
+  // 4. Return it to the client
+  res.json({ accessToken: newAccessToken });
+});
+
 app.post(
   "/expenses",
   validateBody(createExpenseSchema),
