@@ -1,4 +1,4 @@
-import type { Expense } from "./types/types";
+import type { Expense } from "./types/Expense";
 export let expensesArr: Expense[] = [
   {
     id: "1",

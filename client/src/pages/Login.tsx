@@ -29,10 +29,11 @@ function Login() {
     const res = await response.json();
     console.log(res);
 
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to create account");
-    }
-    const accessToken = res.accessToken;
+    // if (!response.ok) {
+    //   throw new Error(data.message || "Failed to create account");
+    // }
+    const accessToken = res.user.accessToken;
+    console.log("accessToken", accessToken);
     localStorage.setItem("token", accessToken);
 
     return res;

@@ -11,6 +11,7 @@ import { validateBody } from "./middleware/validateBody.ts";
 import type { Express, Request, Response, NextFunction } from "express";
 import {
   createExpenseSchema,
+  getExpensesSchema,
   updateExpenseSchema,
 } from "./schemas/expenseSchema.ts";
 import type { CreateUser, LoginUser } from "./schemas/userSchema.ts";
@@ -21,7 +22,7 @@ import { expensesArr } from "./constant.ts";
 import { calculateTotal, getTotalsByCategory } from "./utils/utilityfunc.ts";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
+import type { PaginationQuery } from "./schemas/expenseSchema.ts";
 import type {
   CreateExpenseDto,
   ExpenseSummaryDto,
@@ -114,6 +115,7 @@ app.post(
           expiresIn: "1h",
         },
       );
+      console.log("accessToken", accessToken);
       const refreshSecret = process.env.JWT_REFRESH_SECRET;
       if (!refreshSecret) {
         throw new Error(
@@ -194,7 +196,7 @@ app.post(
   },
 );
 app.delete(
-  "/expenses/userId/:id",
+  "/expenses/:id",
   async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
       if (!req.userId) {
@@ -205,6 +207,9 @@ app.delete(
         return next(error);
       }
       const { id } = req.params;
+      if (!id) {
+        return next({ statusCode: 404, message: "Expense not found" });
+      }
       const deleteExpense = await ExpenseModel.findOneAndDelete(
         { _id: id, userId: req.userId },
         req.body,
@@ -218,8 +223,9 @@ app.delete(
 );
 app.get(
   "/expenses",
+  validateBody(getExpensesSchema),
   async (
-    req: Request<{ limit: number; page: number }>,
+    req: Request<PaginationQuery>,
     res: Response<PaginationResponse>,
     next: NextFunction,
   ) => {
