@@ -1,118 +1,76 @@
-import { useState, useMemo } from "react";
-import type { Expense, ExpenseListProps } from "../types/Expense";
-export function ExpenseList({
-  expenses,
-  onAddExpense,
-  onEditExpense,
-  onDeleteExpense,
-  pageSize = 5,
-}: ExpenseListProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-  const [sortBy, setSortBy] = useState<
-    "date-desc" | "date-asc" | "amount-desc" | "amount-asc"
-  >("date-desc");
+import apiClient from "../api/expenses";
+import type { Expense, GetExpensesParams } from "../types/Expense";
+import { useState, useEffect, useMemo } from "react";
 
-  const [currentPage, setCurrentPage] = useState<number>(1);
-
-  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+const ExpenseList2 = () => {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [filters, setFilters] = useState<GetExpensesParams>({
+    category: "ALL",
+    to: "",
+    from: "",
+    sortBy: "",
+    page: 1,
+    limit: 10,
+  });
 
   const categories = useMemo(() => {
     const cats = new Set(expenses.map((e) => e.category));
     return Array.from(cats);
   }, [expenses]);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
-  // --- Filter and Sort Logic ---
-  const filteredAndSortedExpenses = useMemo(() => {
-    return expenses
-      .filter((expense) => {
-        // Category Filter
-        if (
-          selectedCategory !== "ALL" &&
-          expense.category !== selectedCategory
-        ) {
-          return false;
-        }
-
-        // Date Range Filter (assumes expense object has a `date` field in YYYY-MM-DD or ISODate format)
-        if (expense.date) {
-          const expDate = new Date(expense.date).getTime();
-          if (startDate && expDate < new Date(startDate).getTime())
-            return false;
-          if (endDate && expDate > new Date(endDate).valueOf() + 86400000)
-            return false; // include full end day
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === "amount-desc") return b.amount - a.amount;
-        if (sortBy === "amount-asc") return a.amount - b.amount;
-
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        if (sortBy === "date-asc") return dateA - dateB;
-        return dateB - dateA; // default: date-desc
+  async function getExpenses() {
+    try {
+      const response = await apiClient.get("http://localhost:3000/expenses", {
+        params: {
+          category: filters.category,
+          from: filters.to,
+          to: filters.from,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
+          page: filters.page,
+          limit: filters.limit,
+        },
       });
-  }, [expenses, selectedCategory, startDate, endDate, sortBy]);
-
-  // --- Category Totals Calculation ---
-  const totalsByCategory = useMemo(() => {
-    return filteredAndSortedExpenses.reduce<Record<string, number>>(
-      (acc, exp) => {
-        acc[exp.category] = (acc[exp.category] || 0) + Number(exp.amount || 0);
-        return acc;
-      },
-      {},
-    );
-  }, [filteredAndSortedExpenses]);
-
-  const grandTotal = useMemo(() => {
-    return Object.values(totalsByCategory).reduce((sum, val) => sum + val, 0);
-  }, [totalsByCategory]);
-
-  // --- Pagination Calculation ---
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredAndSortedExpenses.length / pageSize),
-  );
-
-  // Ensure current page doesn't exceed total pages after filtering
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedExpenses = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
-    return filteredAndSortedExpenses.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedExpenses, safeCurrentPage, pageSize]);
-
-  // Handlers for Delete Confirmation
-  const confirmDelete = () => {
-    if (expenseToDelete && onDeleteExpense) {
-      onDeleteExpense(expenseToDelete.id);
+      setExpenses(response.data);
+      setTotalPages(Math.ceil(response.data.total / filters.limit));
+      console.log(response.data);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error fetching data:", error.message);
+      }
+    }
+  }
+  async function deleteExpense(id: string) {
+    if (expenseToDelete) {
+      await apiClient.delete(`/expenses/${id}`);
     }
     setExpenseToDelete(null);
+
+    const updatedExpenses = expenses.filter((item) => item.id !== id);
+    return updatedExpenses;
+  }
+
+  async function editExpense(id: string) {
+    const updatedExpense = await apiClient.patch(`/expenses/${id}`);
+    return updatedExpense;
+  }
+  const totalsByCategory = async () => {
+    return await apiClient.get("/expenses/totals-by-category");
+  };
+  const grandTotal = async () => {
+    const total = await apiClient.get("/expenses/total");
+    return total;
   };
 
-  return (
-    <div className="w-full max-w-4xl mx-auto p-4 space-y-6">
-      {/* 3. Header & Add Expense Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Expenses</h2>
-          <p className="text-sm text-gray-500">
-            Manage and track your daily spending
-          </p>
-        </div>
-        <button
-          onClick={onAddExpense}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition flex items-center justify-center gap-2"
-        >
-          <span>+ Add Expense</span>
-        </button>
-      </div>
+  useEffect(() => {
+    getExpenses();
+  }, []);
 
-      {/* 2. Filter Bar */}
+  return (
+    <>
+      {" "}
       <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {/* Category Filter */}
         <div>
@@ -120,11 +78,14 @@ export function ExpenseList({
             Category
           </label>
           <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={filters.category}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                category: e.target.value,
+                page: 1,
+              }))
+            }
             className="w-full bg-white border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="ALL">All Categories</option>
@@ -143,11 +104,14 @@ export function ExpenseList({
           </label>
           <input
             type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={filters.from}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                from: e.target.value,
+                page: 1,
+              }))
+            }
             className="w-full bg-white border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
@@ -159,11 +123,14 @@ export function ExpenseList({
           </label>
           <input
             type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={filters.to}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                to: e.target.value,
+                page: 1,
+              }))
+            }
             className="w-full bg-white border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
@@ -174,19 +141,23 @@ export function ExpenseList({
             Sort By
           </label>
           <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            value={filters.sortBy}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                sortBy: e.target.value,
+                page: 1,
+              }))
+            }
             className="w-full bg-white border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           >
-            <option value="date-desc">Date: Newest First</option>
-            <option value="date-asc">Date: Oldest First</option>
+            {/* <option value="date-desc">Date: Newest First</option>
+            <option value="date-asc">Date: Oldest First</option> */}
             <option value="amount-desc">Amount: High to Low</option>
             <option value="amount-asc">Amount: Low to High</option>
           </select>
         </div>
       </div>
-
-      {/* 5. Totals by Category Summary Display */}
       <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">
           Filtered Totals Summary
@@ -210,15 +181,13 @@ export function ExpenseList({
           Grand Total: ${grandTotal.toFixed(2)}
         </div>
       </div>
-
-      {/* Expense List Items */}
       <div className="space-y-3">
-        {paginatedExpenses.length === 0 ? (
+        {expenses.length === 0 ? (
           <div className="text-center py-8 text-gray-500 border border-dashed rounded-xl">
             No expenses found matching the selected filters.
           </div>
         ) : (
-          paginatedExpenses.map((expense) => {
+          expenses.map((expense) => {
             const { id, amount, category, description, date } = expense;
             return (
               <div
@@ -234,7 +203,9 @@ export function ExpenseList({
                       {category}
                     </span>
                     {date && (
-                      <span className="text-xs text-gray-400">({date})</span>
+                      <span className="text-xs text-gray-400">
+                        {date.toString()}
+                      </span>
                     )}
                   </div>
                   <p className="text-sm text-gray-600">
@@ -246,10 +217,9 @@ export function ExpenseList({
                   </p>
                 </div>
 
-                {/* 3 & 4. Inline Edit & Delete Buttons */}
                 <div className="flex items-center gap-2 self-end sm:self-center">
                   <button
-                    onClick={() => onEditExpense?.(expense)}
+                    onClick={() => editExpense(expense.id)}
                     className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition"
                   >
                     Edit
@@ -266,34 +236,32 @@ export function ExpenseList({
           })
         )}
       </div>
-
-      {/* 1. Pagination Controls */}
       <div className="flex items-center justify-between border-t pt-4 text-sm text-gray-600">
         <div>
-          Page <span className="font-semibold">{safeCurrentPage}</span> of{" "}
+          Page <span className="font-semibold">{filters.page}</span> of{" "}
           <span className="font-semibold">{totalPages}</span>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={safeCurrentPage === 1}
+            onClick={() =>
+              setFilters((prev) => ({ ...prev, page: prev.page - 1 }))
+            }
+            disabled={filters.page <= 1}
             className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             Previous
           </button>
           <button
             onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              setFilters((prev) => ({ ...prev, page: prev.page + 1 }))
             }
-            disabled={safeCurrentPage === totalPages}
+            disabled={filters.page >= totalPages}
             className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             Next
           </button>
         </div>
       </div>
-
-      {/* 4. Delete Confirmation Modal */}
       {expenseToDelete && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
@@ -314,7 +282,7 @@ export function ExpenseList({
                 Cancel
               </button>
               <button
-                onClick={confirmDelete}
+                onClick={() => deleteExpense(expenseToDelete.id)}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
               >
                 Delete Expense
@@ -323,6 +291,8 @@ export function ExpenseList({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
-}
+};
+
+export default ExpenseList2;

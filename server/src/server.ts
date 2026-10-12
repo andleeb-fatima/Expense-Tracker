@@ -22,7 +22,11 @@ import { expensesArr } from "./constant.ts";
 import { calculateTotal, getTotalsByCategory } from "./utils/utilityfunc.ts";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import type { PaginationQuery } from "./schemas/expenseSchema.ts";
+import type {
+  GetExpenseQuery,
+  PaginationQuery,
+  ExpenseFilter,
+} from "./schemas/expenseSchema.ts";
 import type {
   CreateExpenseDto,
   ExpenseSummaryDto,
@@ -34,9 +38,12 @@ import type { IUser } from "./types/User.ts";
 import { UserModel } from "./models/User.model.ts";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { validateQuery } from "./middleware/validateQuery.ts";
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
+
+console.log(process.env.JWT_ACCESS_SECRET);
 
 // Middleware for parsing JSON and URL-encoded bodies
 app.use(
@@ -223,32 +230,39 @@ app.delete(
 );
 app.get(
   "/expenses",
-  validateBody(getExpensesSchema),
+  validateQuery(getExpensesSchema),
   async (
-    req: Request<PaginationQuery>,
+    req: Request,
     res: Response<PaginationResponse>,
     next: NextFunction,
   ) => {
     try {
-      if (!req.userId) {
-        return next({
-          statusCode: 404,
-          message: "UserId Required",
-        });
-      }
+      const { category, from, to, sortBy, sortOrder }: GetExpenseQuery =
+        req.query;
       const limit = Number(req.query.limit) || 10;
       const page = Number(req.query.page) || 1;
-      const maximumLimit = 500;
-      const skip = (page - 1) * limit;
+
       const userId = req.userId;
-      if (limit > maximumLimit) {
-        return next({ statusCode: 400, message: "Maximum limit reached" });
+      const filter: ExpenseFilter = {};
+
+      if (category) {
+        filter.category = category;
       }
-      const expenses = await ExpenseModel.find({ userId })
-        .sort({ createdAt: -1 })
-        .skip(skip)
+      if (from || to) {
+        filter.date = {};
+        if (from) filter.date.$gte = from;
+        if (to) filter.date.$lte = to;
+      }
+
+      const expenses = await ExpenseModel.find({ filter, userId })
+        // .sort({ createdAt: -1 })
+        .sort({ [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1 })
+        .skip((page - 1) * limit)
         .limit(limit);
-      const total = await ExpenseModel.find({ userId }).countDocuments();
+      const total = await ExpenseModel.countDocuments({
+        filter,
+        userId,
+      });
 
       return res.status(200).json({ page, limit, total, items: expenses });
     } catch (error) {
@@ -379,7 +393,8 @@ app.get(
   "/expenses/total",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const total: number = calculateTotal(expensesArr);
+      const expenses = await ExpenseModel.find({ userId: req.userId });
+      const total: number = calculateTotal(expenses);
       return res.status(200).json({ total });
     } catch (error) {
       console.error("Error calculating total expenses:", error);

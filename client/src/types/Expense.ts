@@ -21,3 +21,13 @@ export interface ExpenseListProps {
   onDeleteExpense?: (id: string | number) => void;
   pageSize?: number;
 }
+
+export interface GetExpensesParams {
+  category?: string;
+  from?: string;
+  to?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  page: number;
+  limit: number;
+}

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { ExpenseForm } from "./components/ExpenseForm";
-import { ExpenseList } from "./components/ExpenseList";
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { Expense } from "./types/Expense";
 import { getLastItem } from "./utils/addExpense";
 import Login from "./pages/Login";
 import { SignupForm } from "./pages/Signup";
 import axios from "axios";
+import ExpenseList from "./components/ExpenseList";
+import ExpenseForm2 from "./components/ExpenseForm2";
 function App() {
   // const [expenses, setExpenses] = useState<Expense[]>(expensesArr);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -54,23 +55,22 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignupForm />} />
         <Route path="/expense-form" element={<RequireAuth></RequireAuth>} />
-        <Route
-          path="/expenseList"
-          element={<ExpenseList expenses={expenses} />}
-        />
+        <Route path="/expenseList" element={<ExpenseList />} />
         <Route
           path="/expenseForm"
-          element={<ExpenseForm appendExpense={addExpense} />}
+          element={<ExpenseForm2 appendExpense={addExpense} />}
         />
         <Route
           path="/expenses"
           element={
             // <RequireAuth>
-            <ExpenseList expenses={expenses} />
+            <ExpenseList />
             // </RequireAuth>
           }
         />
       </Routes>
+      <ExpenseForm2 appendExpense={addExpense} />
+      <ExpenseList />
     </>
   );
 }
