@@ -2,7 +2,7 @@ import apiClient from "../api/expenses";
 import type { Expense, GetExpensesParams } from "../types/Expense";
 import { useState, useEffect, useMemo } from "react";
 
-const ExpenseList2 = () => {
+const ExpenseList = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [filters, setFilters] = useState<GetExpensesParams>({
@@ -295,4 +295,4 @@ const ExpenseList2 = () => {
   );
 };
 
-export default ExpenseList2;
+export default ExpenseList;

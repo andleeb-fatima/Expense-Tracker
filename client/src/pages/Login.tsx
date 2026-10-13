@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, CheckCircle, ArrowRight } from "lucide-react";
 import { loginSchema, type LoginFormData } from "../schemas/authSchema";
-function Login() {
+export function LoginForm() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [serverSuccess, setServerSuccess] = useState<boolean>(false);
 
@@ -20,23 +20,33 @@ function Login() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    const response = await fetch(`http://localhost:3000/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch(`http://localhost:3000/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-    const res = await response.json();
-    console.log(res);
+      const res = await response.json();
 
-    // if (!response.ok) {
-    //   throw new Error(data.message || "Failed to create account");
-    // }
-    const accessToken = res.user.accessToken;
-    console.log("accessToken", accessToken);
-    localStorage.setItem("token", accessToken);
+      if (!response.ok) {
+        throw new Error(res.message || "Failed to login");
+      }
 
-    return res;
+      const accessToken = res.accessToken;
+      if (!accessToken) {
+        throw new Error("Access token was not provided by the server");
+      }
+
+      console.log("accessToken", accessToken);
+      localStorage.setItem("token", accessToken);
+
+      return res;
+    } catch (error: any) {
+      console.error("Login failed:", error.message);
+
+      // throw error;
+    }
   };
 
   return (
@@ -158,5 +168,4 @@ function Login() {
   );
 }
 
-// 2. Export the component so it can be used in other files
-export default Login;
+export default LoginForm;

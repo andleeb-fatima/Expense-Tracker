@@ -21,21 +21,25 @@ export function SignupForm() {
   });
 
   const onSubmit = async (data: SignupFormData) => {
-    const response = await fetch(`http://localhost:3000/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch(`http://localhost:3000/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-    const res = await response.json();
-    console.log(res);
+      const res = await response.json();
+      console.log(res);
 
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to create account");
+      if (!response.ok) {
+        throw new Error(res.message || "Failed to create account");
+      }
+
+      return res;
+    } catch (error: any) {
+      console.error("Signup failed:", error.message);
+      // throw error;
     }
-    const accessToken = res.accessToken;
-
-    return res;
   };
 
   return (

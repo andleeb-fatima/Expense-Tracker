@@ -7,24 +7,20 @@ export function authenticateUser(
 ) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-  console.log(authHeader);
   console.log("the token", token);
   if (!token) {
     return res.status(401).json({ message: "Unauthorized: Token required" });
   }
-  try {
-    // const verifiedToken = jwt.verify(token, process.env.SECRET_KEY);
-    // if (!req.userId) {
-    //     return next({
-    //       statusCode: 401,
-    //       message: "UserId Required",
-    //     });
-    //   }
-    const verifiedToken = { userId: "123", token: "1243534" };
-    if (token === verifiedToken.token && req.userId === verifiedToken.userId)
-      console.log("userId", verifiedToken.userId);
-    req.userId = verifiedToken.userId;
 
+  try {
+    const verifiedToken = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    req.userId = verifiedToken.userId;
+    if (!req.userId) {
+      return next({
+        statusCode: 401,
+        message: "UserId Required",
+      });
+    }
     return next();
   } catch (error: unknown) {
     if (error instanceof Error) {

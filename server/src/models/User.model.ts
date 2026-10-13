@@ -18,6 +18,15 @@ const UserSchema = new Schema<UserDocument>(
   },
   {
     timestamps: true,
+    toJSON: {
+      transform: (doc, ret, options) => {
+        return {
+          _id: ret._id,
+          name: ret.name,
+          email: ret.email,
+        };
+      },
+    },
   },
 );
 

@@ -6,6 +6,7 @@ import dns, { type RecordWithTtl } from "node:dns";
 // Added to fix MongoDB Atlas SRV resolution failures in some network environments.
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import { authenticateUser } from "./middleware/authenticateUser.ts";
+import { validateQuery } from "./middleware/validateQuery.ts";
 import { globalErrorHandler } from "./middleware/errorHandler.ts";
 import { validateBody } from "./middleware/validateBody.ts";
 import type { Express, Request, Response, NextFunction } from "express";
@@ -54,7 +55,6 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
 app.post(
   "/signup",
@@ -74,7 +74,7 @@ app.post(
       const existingUser = await UserModel.findOne({ email });
       if (existingUser) {
         return next({
-          statusCode: 400,
+          statusCode: 409,
           message: "Email is already registered.",
         });
       }
@@ -84,7 +84,10 @@ app.post(
         password: hashedPassword,
         email,
       });
-      return res.status(201).json({ name, email });
+      // return res.status(201).json({ user });
+      return res
+        .status(201)
+        .json({ user: { id: user.id, name: user.name, email: user.email } });
     } catch (error) {
       next(error);
     }
@@ -134,7 +137,7 @@ app.post(
         expiresIn: "3d",
       });
 
-      res.cookie("token", refreshToken, {
+      res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
@@ -150,17 +153,18 @@ app.post(
     }
   },
 );
-
-app.use(authenticateUser);
 app.post("/refresh", (req: Request, res: Response, next: NextFunction) => {
-  const { token } = req.cookies;
-  if (!token) {
+  const { refreshToken } = req.cookies;
+  if (!refreshToken) {
     next({ statusCode: 401, message: "Token Required" });
   }
-  console.log(token);
-  const verifiedToken = jwt.verify(token, process.env.JWT_REFRESH_SECRET!);
+  console.log("refreshToken", refreshToken);
+  const verifiedToken = jwt.verify(
+    refreshToken,
+    process.env.JWT_REFRESH_SECRET!,
+  );
   if (!verifiedToken) {
-    next({ statusCode: 403, message: "Expired or Invalid token" });
+    next({ statusCode: 401, message: "Expired or Invalid token" });
   }
   const newAccessToken = jwt.sign(
     { userId: req.userId },
@@ -168,9 +172,10 @@ app.post("/refresh", (req: Request, res: Response, next: NextFunction) => {
     { expiresIn: "15m" },
   );
 
-  // 4. Return it to the client
   res.json({ accessToken: newAccessToken });
 });
+
+app.use(authenticateUser);
 
 app.post(
   "/expenses",
@@ -206,23 +211,21 @@ app.delete(
   "/expenses/:id",
   async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
-      if (!req.userId) {
-        const error = {
-          statusCode: 401,
-          message: "UserId Required",
-        };
-        return next(error);
-      }
       const { id } = req.params;
       if (!id) {
         return next({ statusCode: 404, message: "Expense not found" });
       }
-      const deleteExpense = await ExpenseModel.findOneAndDelete(
-        { _id: id, userId: req.userId },
-        req.body,
-      );
 
-      return res.status(204).json({ message: "Deleted Successfully" });
+      const deletedExpense = await ExpenseModel.findOneAndDelete({
+        _id: id,
+        userId: req.userId,
+      });
+
+      if (!deletedExpense) {
+        return next({ statusCode: 404, message: "Expense not found" });
+      }
+
+      return res.status(204).send();
     } catch (error: unknown) {
       next(error);
     }
@@ -288,13 +291,7 @@ app.patch(
           runValidators: true,
         },
       );
-      if (!req.userId) {
-        const error = {
-          statusCode: 401,
-          message: "UserId Required",
-        };
-        return next(error);
-      }
+
       if (!updatedExpense) {
         const error = {
           statusCode: 404,
@@ -317,12 +314,12 @@ app.get(
         userId: req.userId,
       }).select("amount category");
       console.log("the userId", req.userId);
-      if (!req.userId) {
-        const error = {
+
+      if (!expensesSummary || expensesSummary.length === 0) {
+        return next({
           statusCode: 404,
-          message: "UserId Required",
-        };
-        return next(error);
+          message: "No expenses found for the user",
+        });
       }
       return res.status(200).json(expensesSummary);
     } catch (error: unknown) {
@@ -331,31 +328,10 @@ app.get(
   },
 );
 
-app.post("/api/login", (req, res) => {
-  const token = jwt.sign({ userId: req.userId }, "new", {
-    expiresIn: "1h",
-  });
-
-  res.cookie("token", token, {
-    httpOnly: true, // 🔒 Blocks JavaScript access (Prevents XSS)
-    secure: process.env.NODE_ENV === "production", // Send only over HTTPS
-    sameSite: "strict", // 🔒 Mitigates CSRF attacks
-    maxAge: 3600000, // Cookie expiry matching token lifespan (1 hour)
-  });
-
-  return res.status(200).json({ success: true, message: "cookies sent" });
-});
-
 app.get(
   "/expenses/totals-by-category",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.userId) {
-        return next({
-          statusCode: 404,
-          message: "UserId Required",
-        });
-      }
       const expenses = await ExpenseModel.find({ userId: req.userId });
 
       const totalExpensesByCategory = getTotalsByCategory(expenses);
