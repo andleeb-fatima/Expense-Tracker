@@ -1,12 +1,11 @@
 import apiClient from "../api/expenses";
 import type { Expense, GetExpensesParams } from "../types/Expense";
 import { useState, useEffect, useMemo } from "react";
-
 const ExpenseList = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [filters, setFilters] = useState<GetExpensesParams>({
-    category: "ALL",
+    category: "",
     to: "",
     from: "",
     sortBy: "",
@@ -22,7 +21,12 @@ const ExpenseList = () => {
 
   async function getExpenses() {
     try {
-      const response = await apiClient.get("http://localhost:3000/expenses", {
+      const params = {};
+      for (const [key, value] of Object.entries(filters)) {
+        if (value === "") continue;
+        else params[key] = value;
+      }
+      const response = await apiClient.get("/expenses", {
         params: {
           category: filters.category,
           from: filters.to,
@@ -33,6 +37,7 @@ const ExpenseList = () => {
           limit: filters.limit,
         },
       });
+      console.log(response);
       setExpenses(response.data);
       setTotalPages(Math.ceil(response.data.total / filters.limit));
       console.log(response.data);
@@ -42,6 +47,9 @@ const ExpenseList = () => {
       }
     }
   }
+  useEffect(() => {
+    getExpenses();
+  }, []);
   async function deleteExpense(id: string) {
     if (expenseToDelete) {
       await apiClient.delete(`/expenses/${id}`);
@@ -61,7 +69,7 @@ const ExpenseList = () => {
   };
   const grandTotal = async () => {
     const total = await apiClient.get("/expenses/total");
-    return total;
+    return total.data;
   };
 
   useEffect(() => {
@@ -158,6 +166,7 @@ const ExpenseList = () => {
           </select>
         </div>
       </div>
+      <button onClick={() => getExpenses()}>Get Expenses</button>
       <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">
           Filtered Totals Summary
@@ -178,7 +187,7 @@ const ExpenseList = () => {
           )}
         </div>
         <div className="text-right border-t border-blue-200 pt-2 text-sm font-bold text-blue-950">
-          Grand Total: ${grandTotal.toFixed(2)}
+          Grand Total: ${grandTotal}
         </div>
       </div>
       <div className="space-y-3">

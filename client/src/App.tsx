@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExpenseForm } from "./components/ExpenseForm";
+import ExpenseForm from "./components/ExpenseForm";
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { Expense } from "./types/Expense";
 import { getLastItem } from "./utils/addExpense";
@@ -8,29 +8,14 @@ import apiclient from "./api/expenses";
 import { SignupForm } from "./pages/Signup";
 import axios from "axios";
 import ExpenseList from "./components/ExpenseList";
-import ExpenseForm2 from "./components/ExpenseForm2";
+
 function App() {
   // const [expenses, setExpenses] = useState<Expense[]>(expensesArr);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  async function getExpenses() {
-    try {
-      const response = await axios.get("http://localhost:3000/expenses");
-      setExpenses(response.data);
-      console.log(response.data);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Error fetching data:", error.message);
-      }
-    }
-  }
   async function refreshToken() {
     await apiclient.get("/refresh");
   }
-  useEffect(() => {
-    getExpenses();
-    refreshToken();
-  }, []);
 
   function addExpense(expense: Expense): void {
     const newExpense = [...expenses, expense];
@@ -43,12 +28,7 @@ function App() {
     if (!token) {
       return <Navigate to="/login" />;
     }
-    return (
-      <>
-        {" "}
-        <ExpenseForm appendExpense={addExpense} />
-      </>
-    );
+    return <>{children}</>;
   };
   return (
     <>
@@ -67,25 +47,14 @@ function App() {
         />
 
         <Route
-          path="/expenseForm"
+          path="/expenseList"
           element={
             <RequireAuth>
               <ExpenseList />
             </RequireAuth>
           }
         />
-
-        <Route
-          path="/expenseList"
-          element={
-            <RequireAuth>
-              <ExpenseForm appendExpense={addExpense} />
-            </RequireAuth>
-          }
-        />
       </Routes>
-      <ExpenseForm2 appendExpense={addExpense} />
-      <ExpenseList />
     </>
   );
 }

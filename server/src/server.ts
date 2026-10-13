@@ -39,7 +39,6 @@ import type { IUser } from "./types/User.ts";
 import { UserModel } from "./models/User.model.ts";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import { validateQuery } from "./middleware/validateQuery.ts";
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;

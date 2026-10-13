@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, CheckCircle, ArrowRight } from "lucide-react";
 import { loginSchema, type LoginFormData } from "../schemas/authSchema";
+import apiClient from "../api/expenses";
+import type { LoginResponse } from "../types/User";
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [serverSuccess, setServerSuccess] = useState<boolean>(false);
@@ -21,19 +23,10 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await fetch(`http://localhost:3000/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response: LoginResponse = await apiClient.post(`/login`, data);
+      console.log("login res", response);
 
-      const res = await response.json();
-
-      if (!response.ok) {
-        throw new Error(res.message || "Failed to login");
-      }
-
-      const accessToken = res.accessToken;
+      const accessToken = response.user.accessToken;
       if (!accessToken) {
         throw new Error("Access token was not provided by the server");
       }
@@ -41,7 +34,7 @@ export function LoginForm() {
       console.log("accessToken", accessToken);
       localStorage.setItem("token", accessToken);
 
-      return res;
+      return response;
     } catch (error: any) {
       console.error("Login failed:", error.message);
 
