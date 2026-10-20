@@ -1,27 +1,32 @@
+import { useForm, type SubmitHandler } from "react-hook-form";
+import type { CreateExpense } from "../schemas/expenseSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createExpenseSchema } from "../schemas/expenseSchema";
+import apiClient from "../api/expenses";
 import { useState } from "react";
-import type { Category, Expense } from "../types/types";
+import type { Expense } from "../types/Expense";
 
-export function ExpenseForm({
+export default function ExpenseForm({
   appendExpense,
 }: {
   appendExpense: (expense: Expense) => void;
 }) {
-  const [expense, setExpense] = useState<
-    Partial<Omit<Expense, "userId" | "date" | "id">>
-  >({
-    amount: 0,
-    description: "",
-    category: "others",
-    // userId: "05",
-    // date: new Date(),
-    // id: "2",
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CreateExpense>({
+    resolver: zodResolver(createExpenseSchema),
+    defaultValues: {
+      amount: 100,
+      description: "No Description Provided",
+      category: "other",
+    },
   });
-
   interface CategoryArr {
     id: number;
     c: string;
   }
-
   const categories: CategoryArr[] = [
     { id: 0, c: "food" },
     { id: 1, c: "utilities" },
@@ -29,61 +34,36 @@ export function ExpenseForm({
     { id: 3, c: "entertainment" },
     { id: 4, c: "others" },
   ];
+
+  const onSubmit: SubmitHandler<CreateExpense> = async (data) => {
+    try {
+      const response = await apiClient.post("/expenses", data);
+      appendExpense(response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to create expense:", error);
+    }
+  };
+
   return (
-    <>
-      <form
-        className="flex gap-2 "
-        onSubmit={(e: React.SubmitEvent<HTMLFormElement>) => {
-          e.preventDefault();
-          appendExpense(expense);
-        }}
-      >
-        <div>
-          <label htmlFor="amount">Amount:</label>
-          <input
-            type="number"
-            name="amount"
-            id="amount"
-            value={expense.amount}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setExpense({ ...expense, amount: Number(e.target.value) })
-            }
-          />
-        </div>
-        <div>
-          <label htmlFor="category">Choose a Category:</label>
-          <select
-            name="category"
-            id="category"
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              setExpense({ ...expense, category: e.target.value as Category })
-            }
-          >
-            {categories.map(({ id, c }) => {
-              return (
-                <option value={c} key={id}>
-                  {c}
-                </option>
-              );
-            })}
-          </select>
-        </div>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input defaultValue="100" {...(register("amount"), { required: true })} />
+      {errors.amount && <span>This field is required</span>}
 
-        <div>
-          <label htmlFor="description">Description:</label>
-          <input
-            id="description"
-            name="description"
-            placeholder="Enter description..."
-            value={expense.description}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setExpense({ ...expense, description: e.target.value })
-            }
-          />
-        </div>
+      <select {...(register("category"), { required: true })}>
+        {categories.map(({ id, c }) => {
+          return (
+            <option value={c} key={id}>
+              {c}
+            </option>
+          );
+        })}
+      </select>
+      {errors.category && <span>This field is required</span>}
 
-        <button type="submit">Submit</button>
-      </form>
-    </>
+      <input {...register("description")} />
+
+      <button type="submit">Add Expense</button>
+    </form>
   );
 }

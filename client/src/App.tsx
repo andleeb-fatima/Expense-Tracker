@@ -1,49 +1,60 @@
-import { Children, useState } from "react";
-import { ExpenseForm } from "./components/ExpenseForm";
-import { ExpenseList } from "./components/ExpenseList";
+import { useEffect, useState } from "react";
+import ExpenseForm from "./components/ExpenseForm";
 import { Navigate, Route, Routes } from "react-router-dom";
-import type { Expense } from "./types/types";
+import type { Expense } from "./types/Expense";
 import { getLastItem } from "./utils/addExpense";
 import Login from "./pages/Login";
+import apiclient from "./api/expenses";
+import { SignupForm } from "./pages/Signup";
+import axios from "axios";
+import ExpenseList from "./components/ExpenseList";
+
 function App() {
   // const [expenses, setExpenses] = useState<Expense[]>(expensesArr);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  async function refreshToken() {
+    await apiclient.get("/refresh");
+  }
 
   function addExpense(expense: Expense): void {
     const newExpense = [...expenses, expense];
     setExpenses(newExpense);
     console.log("new expense", newExpense);
   }
-  console.log(getLastItem(expenses));
-  const newtoken = "new";
-  localStorage.setItem("token", newtoken);
-  const RequireAuth = ({}) => {
+  // console.log(getLastItem(expenses));
+  const RequireAuth = ({ children }: { children: React.ReactNode }) => {
     const token = localStorage.getItem("token");
-    if (token !== "jkl") {
+    if (!token) {
       return <Navigate to="/login" />;
     }
-    return (
-      <>
-        {" "}
-        <ExpenseForm appendExpense={addExpense} />
-      </>
-    );
+    return <>{children}</>;
   };
   return (
     <>
       {/* <ExpenseForm appendExpense={addExpense} />
       <ExpenseList expenses={expenses} /> */}
       <Routes>
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/expense-form" element={<RequireAuth></RequireAuth>} />
-        {/* <Route
-          path="/expenses"
+        <Route path="/signup" element={<SignupForm />} />
+        <Route
+          path="/expenseForm"
           element={
             <RequireAuth>
-              <ExpenseList expenses={expenses} />
+              <ExpenseForm appendExpense={addExpense} />
             </RequireAuth>
           }
-        /> */}
+        />
+
+        <Route
+          path="/expenseList"
+          element={
+            <RequireAuth>
+              <ExpenseList />
+            </RequireAuth>
+          }
+        />
       </Routes>
     </>
   );
