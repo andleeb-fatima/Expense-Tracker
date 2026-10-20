@@ -5,9 +5,11 @@ import { Eye, EyeOff, Lock, Mail, CheckCircle, ArrowRight } from "lucide-react";
 import { loginSchema, type LoginFormData } from "../schemas/authSchema";
 import apiClient from "../api/expenses";
 import type { LoginResponse } from "../types/User";
+import { useNavigate } from "react-router-dom";
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [serverSuccess, setServerSuccess] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -33,6 +35,7 @@ export function LoginForm() {
 
       console.log("accessToken", accessToken);
       localStorage.setItem("token", accessToken);
+      navigate("/expenseList");
 
       return response;
     } catch (error: any) {
@@ -45,7 +48,7 @@ export function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="mt-8 space-y-6"
+      className="mt-8 space-y-6 mx-auto max-w-2xl"
       noValidate
     >
       {serverSuccess && (
@@ -130,7 +133,7 @@ export function LoginForm() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm">
+      {/* <div className="flex items-center justify-between text-sm">
         <label className="flex items-center">
           <input
             type="checkbox"
@@ -141,7 +144,7 @@ export function LoginForm() {
         <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
           Forgot password?
         </a>
-      </div>
+      </div> */}
 
       <button
         type="submit"

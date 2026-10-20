@@ -35,6 +35,7 @@ function App() {
       {/* <ExpenseForm appendExpense={addExpense} />
       <ExpenseList expenses={expenses} /> */}
       <Routes>
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignupForm />} />
         <Route

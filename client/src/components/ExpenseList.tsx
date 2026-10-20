@@ -21,22 +21,14 @@ const ExpenseList = () => {
 
   async function getExpenses() {
     try {
-      const params = {};
+      const params: Record<string, any> = {};
       for (const [key, value] of Object.entries(filters)) {
         if (value === "") continue;
-        else params[key] = value;
+        params[key] = value;
       }
-      const response = await apiClient.get("/expenses", {
-        params: {
-          category: filters.category,
-          from: filters.to,
-          to: filters.from,
-          sortBy: filters.sortBy,
-          sortOrder: filters.sortOrder,
-          page: filters.page,
-          limit: filters.limit,
-        },
-      });
+
+      const response = await apiClient.get("/expenses", { params });
+
       console.log(response);
       setExpenses(response.data);
       setTotalPages(Math.ceil(response.data.total / filters.limit));
@@ -50,6 +42,9 @@ const ExpenseList = () => {
   useEffect(() => {
     getExpenses();
   }, []);
+  // useEffect(() => {
+  //   getExpenses();
+  // }, [filters]);
   async function deleteExpense(id: string) {
     if (expenseToDelete) {
       await apiClient.delete(`/expenses/${id}`);

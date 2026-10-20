@@ -2,10 +2,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, User, ArrowRight } from "lucide-react";
+import apiClient from "../api/expenses";
 import { signupSchema, type SignupFormData } from "../schemas/authSchema";
+import type { SignupResponse } from "../types/User";
+import { useNavigate } from "react-router-dom";
 
 export function SignupForm() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -22,20 +26,12 @@ export function SignupForm() {
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      const response = await fetch(`http://localhost:3000/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response: SignupResponse = await apiClient.post(`/signup`, data);
 
-      const res = await response.json();
-      console.log(res);
-
-      if (!response.ok) {
-        throw new Error(res.message || "Failed to create account");
-      }
-
-      return res;
+      const user = response.user;
+      console.log(response.message);
+      navigate("/login");
+      return user;
     } catch (error: any) {
       console.error("Signup failed:", error.message);
       // throw error;

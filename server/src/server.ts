@@ -84,9 +84,10 @@ app.post(
         email,
       });
       // return res.status(201).json({ user });
-      return res
-        .status(201)
-        .json({ user: { id: user.id, name: user.name, email: user.email } });
+      return res.status(201).json({
+        user: { id: user.id, name: user.name, email: user.email },
+        message: "Account created successfully",
+      });
     } catch (error) {
       next(error);
     }
@@ -245,8 +246,8 @@ app.get(
       const page = Number(req.query.page) || 1;
 
       const userId = req.userId;
-      const filter: ExpenseFilter = {};
-
+      const filter: Record<string, any> = { userId };
+      console.log(filter, "filter");
       if (category) {
         filter.category = category;
       }
@@ -256,15 +257,11 @@ app.get(
         if (to) filter.date.$lte = to;
       }
 
-      const expenses = await ExpenseModel.find({ filter, userId })
-        // .sort({ createdAt: -1 })
+      const expenses = await ExpenseModel.find(filter)
         .sort({ [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1 })
         .skip((page - 1) * limit)
         .limit(limit);
-      const total = await ExpenseModel.countDocuments({
-        filter,
-        userId,
-      });
+      const total = await ExpenseModel.countDocuments(filter);
 
       return res.status(200).json({ page, limit, total, items: expenses });
     } catch (error) {
