@@ -8,6 +8,8 @@ import apiclient from "./api/expenses";
 import { SignupForm } from "./pages/Signup";
 import axios from "axios";
 import ExpenseList from "./components/ExpenseList";
+import NoticeBanner from "./components/NoticeBanner";
+import FilterBar from "./components/FilterBar";
 
 function App() {
   // const [expenses, setExpenses] = useState<Expense[]>(expensesArr);
@@ -34,7 +36,7 @@ function App() {
     <>
       {/* <ExpenseForm appendExpense={addExpense} />
       <ExpenseList expenses={expenses} /> */}
-      <Routes>
+      {/* <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignupForm />} />
@@ -55,7 +57,9 @@ function App() {
             </RequireAuth>
           }
         />
-      </Routes>
+      </Routes> */}
+      <NoticeBanner />
+      <FilterBar />
     </>
   );
 }
