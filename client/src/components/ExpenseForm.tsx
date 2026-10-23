@@ -14,7 +14,7 @@ export default function ExpenseForm({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<CreateExpense>({
     resolver: zodResolver(createExpenseSchema),
     defaultValues: {
@@ -47,10 +47,19 @@ export default function ExpenseForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <input defaultValue="100" {...(register("amount"), { required: true })} />
+      <input
+        defaultValue="100"
+        {...(register("amount"), { required: true, valueAsNumber: true })}
+        aria-invalid={errors.amount ? "true" : "false"}
+        aria-describedby={errors.amount ? "amount-error" : undefined}
+      />
       {errors.amount && <span>This field is required</span>}
 
-      <select {...(register("category"), { required: true })}>
+      <select
+        {...(register("category"), { required: true })}
+        aria-invalid={errors.category ? "true" : "false"}
+        aria-describedby={errors.category ? "category-error" : undefined}
+      >
         {categories.map(({ id, c }) => {
           return (
             <option value={c} key={id}>
@@ -63,7 +72,9 @@ export default function ExpenseForm({
 
       <input {...register("description")} />
 
-      <button type="submit">Add Expense</button>
+      <button type="submit" disabled={isSubmitting}>
+        Add Expense
+      </button>
     </form>
   );
 }

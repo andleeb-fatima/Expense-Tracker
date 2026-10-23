@@ -36,7 +36,7 @@ function App() {
     <>
       {/* <ExpenseForm appendExpense={addExpense} />
       <ExpenseList expenses={expenses} /> */}
-      {/* <Routes>
+      <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignupForm />} />
@@ -57,7 +57,7 @@ function App() {
             </RequireAuth>
           }
         />
-      </Routes> */}
+      </Routes>
       <NoticeBanner />
       <FilterBar />
     </>

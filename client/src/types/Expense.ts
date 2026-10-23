@@ -12,7 +12,7 @@ export type Category =
   | "utilities"
   | "transport"
   | "entertainment"
-  | "others";
+  | "other";
 
 export interface ExpenseListProps {
   expenses: Expense[];

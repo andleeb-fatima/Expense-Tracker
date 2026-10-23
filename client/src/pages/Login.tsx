@@ -14,6 +14,7 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -40,7 +41,7 @@ export function LoginForm() {
       return response;
     } catch (error: any) {
       console.error("Login failed:", error.message);
-
+      setError("root.serverError", { message: error.message });
       // throw error;
     }
   };

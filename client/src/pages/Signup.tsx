@@ -14,6 +14,7 @@ export function SignupForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -21,12 +22,17 @@ export function SignupForm() {
       name: "",
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      const response: SignupResponse = await apiClient.post(`/signup`, data);
+      const { confirmPassword, ...apiPayload } = data;
+      const response: SignupResponse = await apiClient.post(
+        `/signup`,
+        apiPayload,
+      );
 
       const user = response.user;
       console.log(response.message);
@@ -34,6 +40,8 @@ export function SignupForm() {
       return user;
     } catch (error: any) {
       console.error("Signup failed:", error.message);
+
+      setError("root.serverError", { message: error.message });
       // throw error;
     }
   };
@@ -72,7 +80,6 @@ export function SignupForm() {
           <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
         )}
       </div>
-
       {/* Email Field */}
       <div>
         <label
@@ -102,7 +109,6 @@ export function SignupForm() {
           <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
         )}
       </div>
-
       {/* Password Field */}
       <div>
         <label
@@ -143,7 +149,6 @@ export function SignupForm() {
         )}
       </div>
 
-      {/* Confirm Password Field
       <div>
         <label
           htmlFor="signup-confirm-password"
@@ -172,8 +177,7 @@ export function SignupForm() {
             {errors.confirmPassword.message}
           </p>
         )}
-      </div> */}
-
+      </div>
       <button
         type="submit"
         disabled={isSubmitting}
@@ -188,6 +192,7 @@ export function SignupForm() {
           </>
         )}
       </button>
+      {errors.root?.serverError && <div>{errors.root.serverError.message}</div>}
     </form>
   );
 }
